@@ -112,6 +112,29 @@ button.danger {
   margin-bottom: 10px;
 }
 
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.step {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px;
+  text-align: center;
+  font-size: 13px;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.step.on {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-weight: 600;
+}
+
 .members {
   display: flex;
   flex-direction: column;
@@ -168,4 +191,16 @@ button.danger {
 .warn {
   color: #b91c1c;
   font-weight: 600;
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+@media (max-width: 700px) {
+  .stepper {
+    grid-template-columns: 1fr 1fr;
+  }
 }

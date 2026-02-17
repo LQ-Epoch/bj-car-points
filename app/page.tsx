@@ -56,48 +56,68 @@ function createMember(id: number, relation: MemberRelation, role: MemberRole, na
   };
 }
 
+function createDefaultMembers() {
+  return [
+    createMember(1, "self", "main", "主申请人"),
+    createMember(2, "spouse", "spouse", "配偶"),
+  ];
+}
+
+function applyTemplate(template: "duo" | "family3" | "family4") {
+  if (template === "duo") {
+    return {
+      includeSpouse: true,
+      generations: 1,
+      members: [
+        createMember(1, "self", "main", "主申请人"),
+        createMember(2, "spouse", "spouse", "配偶"),
+      ],
+    };
+  }
+  if (template === "family3") {
+    return {
+      includeSpouse: true,
+      generations: 2,
+      members: [
+        createMember(1, "self", "main", "主申请人"),
+        createMember(2, "spouse", "spouse", "配偶"),
+        createMember(3, "child", "other", "子女1"),
+      ],
+    };
+  }
+  return {
+    includeSpouse: true,
+    generations: 3,
+    members: [
+      createMember(1, "self", "main", "主申请人"),
+      createMember(2, "spouse", "spouse", "配偶"),
+      createMember(3, "parent", "other", "父母1"),
+      createMember(4, "parent", "other", "父母2"),
+    ],
+  };
+}
+
 export default function Home() {
+  const [step, setStep] = useState(1);
   const [statYear, setStatYear] = useState(nowYear);
   const [familyApplyStartYear, setFamilyApplyStartYear] = useState<number | null>(null);
   const [generations, setGenerations] = useState(2);
   const [includeSpouse, setIncludeSpouse] = useState(true);
-  const [members, setMembers] = useState<Member[]>([
-    createMember(1, "self", "main", "主申请人"),
-    createMember(2, "spouse", "spouse", "配偶"),
-  ]);
+  const [members, setMembers] = useState<Member[]>(createDefaultMembers());
 
   const yearOptions = useMemo(() => toYearOptions(statYear), [statYear]);
-
   const visibleMembers = useMemo(
     () => members.filter((m) => includeSpouse || m.role !== "spouse"),
     [members, includeSpouse]
   );
-
   const familyApplyYears = calcYears(familyApplyStartYear, statYear);
 
   const result = useMemo(() => {
     const main = visibleMembers.find((m) => m.role === "main");
     const spouse = visibleMembers.find((m) => m.role === "spouse");
-    const others = visibleMembers.filter((m) => m.role === "other");
 
     if (!main) {
-      return {
-        ok: false,
-        message: "至少需要 1 位主申请人。",
-        total: 0,
-        formulaText: "",
-        detail: [] as Array<{
-          id: number;
-          name: string;
-          role: MemberRole;
-          relation: MemberRelation;
-          base: number;
-          ordinaryYears: number;
-          newEnergyYears: number;
-          familyYears: number;
-          point: number;
-        }>,
-      };
+      return { ok: false, message: "至少需要 1 位主申请人。", total: 0, formulaText: "", detail: [] as any[] };
     }
 
     if (includeSpouse && !spouse) {
@@ -106,17 +126,7 @@ export default function Home() {
         message: "你选择了包含配偶，但当前没有配偶成员。",
         total: 0,
         formulaText: "",
-        detail: [] as Array<{
-          id: number;
-          name: string;
-          role: MemberRole;
-          relation: MemberRelation;
-          base: number;
-          ordinaryYears: number;
-          newEnergyYears: number;
-          familyYears: number;
-          point: number;
-        }>,
+        detail: [] as any[],
       };
     }
 
@@ -176,87 +186,112 @@ export default function Home() {
     setMembers((prev) => prev.filter((m) => m.id !== id));
   }
 
+  function useTemplate(t: "duo" | "family3" | "family4") {
+    const data = applyTemplate(t);
+    setIncludeSpouse(data.includeSpouse);
+    setGenerations(data.generations);
+    setMembers(data.members);
+  }
+
   return (
     <main className="container">
       <div className="hero card">
         <div>
           <h1>北京新能源家庭积分计算器</h1>
-          <p className="muted">
-            按“年份下拉选择”设计：不让用户填抽象分数，只要选“哪年开始参与普通摇号 /
-            新能源轮候”，自动估算积分。
-          </p>
+          <p className="muted">全下拉 + 向导模式。只用选年份，不需要自己算分。</p>
         </div>
-        <span className="badge">傻瓜版</span>
+        <span className="badge">小白友好</span>
       </div>
 
-      <section className="card">
-        <h2>① 家庭设置</h2>
-        <div className="grid three">
-          <label>
-            统计到哪一年
-            <select value={statYear} onChange={(e) => setStatYear(Number(e.target.value))}>
-              {Array.from({ length: 16 }, (_, i) => nowYear - i)
-                .sort((a, b) => a - b)
-                .map((year) => (
+      <section className="card stepper">
+        <div className={`step ${step >= 1 ? "on" : ""}`}>1. 选家庭模板</div>
+        <div className={`step ${step >= 2 ? "on" : ""}`}>2. 基础参数</div>
+        <div className={`step ${step >= 3 ? "on" : ""}`}>3. 成员年份</div>
+        <div className={`step ${step >= 4 ? "on" : ""}`}>4. 看结果</div>
+      </section>
+
+      {step === 1 && (
+        <section className="card">
+          <h2>① 先选家庭模板</h2>
+          <div className="actions">
+            <button type="button" onClick={() => useTemplate("duo")}>夫妻二人</button>
+            <button type="button" onClick={() => useTemplate("family3")}>三口之家（含1名子女）</button>
+            <button type="button" onClick={() => useTemplate("family4")}>四口之家（含父母）</button>
+          </div>
+          <p className="muted small">选完模板后可继续增删成员。</p>
+        </section>
+      )}
+
+      {step === 2 && (
+        <section className="card">
+          <h2>② 家庭基础参数</h2>
+          <div className="grid three">
+            <label>
+              统计到哪一年
+              <select value={statYear} onChange={(e) => setStatYear(Number(e.target.value))}>
+                {Array.from({ length: 16 }, (_, i) => nowYear - i)
+                  .sort((a, b) => a - b)
+                  .map((year) => (
+                    <option key={year} value={year}>
+                      {year} 年
+                    </option>
+                  ))}
+              </select>
+            </label>
+
+            <label>
+              家庭申请开始年份
+              <select
+                value={familyApplyStartYear ?? ""}
+                onChange={(e) =>
+                  setFamilyApplyStartYear(e.target.value ? Number(e.target.value) : null)
+                }
+              >
+                <option value="">未开始 / 不确定</option>
+                {yearOptions.map((year) => (
                   <option key={year} value={year}>
                     {year} 年
                   </option>
                 ))}
-            </select>
-          </label>
+              </select>
+            </label>
+
+            <label>
+              家庭代际数
+              <select value={generations} onChange={(e) => setGenerations(Number(e.target.value))}>
+                <option value={1}>1 代</option>
+                <option value={2}>2 代</option>
+                <option value={3}>3 代</option>
+              </select>
+            </label>
+          </div>
 
           <label>
-            家庭申请开始年份
+            是否包含配偶
             <select
-              value={familyApplyStartYear ?? ""}
-              onChange={(e) =>
-                setFamilyApplyStartYear(e.target.value ? Number(e.target.value) : null)
-              }
+              value={includeSpouse ? "yes" : "no"}
+              onChange={(e) => setIncludeSpouse(e.target.value === "yes")}
             >
-              <option value="">未开始 / 不确定</option>
-              {yearOptions.map((year) => (
-                <option key={year} value={year}>
-                  {year} 年
-                </option>
-              ))}
+              <option value="yes">包含</option>
+              <option value="no">不包含</option>
             </select>
           </label>
 
-          <label>
-            家庭代际数
-            <select value={generations} onChange={(e) => setGenerations(Number(e.target.value))}>
-              <option value={1}>1 代</option>
-              <option value={2}>2 代</option>
-              <option value={3}>3 代</option>
-            </select>
-          </label>
-        </div>
+          <p className="muted small">家庭申请加分年限：{familyApplyYears} 年</p>
+        </section>
+      )}
 
-        <label>
-          是否包含配偶
-          <select
-            value={includeSpouse ? "yes" : "no"}
-            onChange={(e) => setIncludeSpouse(e.target.value === "yes")}
-          >
-            <option value="yes">包含</option>
-            <option value="no">不包含</option>
-          </select>
-        </label>
+      {step === 3 && (
+        <section className="card">
+          <h2>③ 家庭成员（选开始年份）</h2>
+          <div className="actions">
+            <button type="button" onClick={() => addMember("parent")}>+ 添加父母</button>
+            <button type="button" onClick={() => addMember("child")}>+ 添加子女</button>
+            <button type="button" onClick={() => addMember("other")}>+ 添加其他成员</button>
+          </div>
 
-        <p className="muted small">家庭申请加分年限：{familyApplyYears} 年</p>
-      </section>
-
-      <section className="card">
-        <h2>② 家庭成员（全下拉）</h2>
-        <div className="actions">
-          <button type="button" onClick={() => addMember("parent")}>+ 添加父母</button>
-          <button type="button" onClick={() => addMember("child")}>+ 添加子女</button>
-          <button type="button" onClick={() => addMember("other")}>+ 添加其他成员</button>
-        </div>
-
-        <div className="members">
-          {visibleMembers.map((m) => {
-            return (
+          <div className="members">
+            {visibleMembers.map((m) => (
               <article className="member" key={m.id}>
                 <div className="member-head">
                   <div>
@@ -321,40 +356,41 @@ export default function Home() {
                   </label>
                 </div>
               </article>
-            );
-          })}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
-      <section className="card result">
-        <h2>③ 计算结果</h2>
-        {result.ok ? (
-          <>
-            <p className="score">家庭总积分：{result.total}</p>
-            <p className="formula">{result.formulaText}</p>
-            <ul className="detail-list">
-              {result.detail.map((d) => (
-                <li key={d.id}>
-                  <strong>{d.name}</strong>（{roleLabel(d.role)} / {relationLabel(d.relation)}）：
-                  基础{d.base} + 普通摇号{d.ordinaryYears} + 新能源轮候{d.newEnergyYears} +
-                  家庭申请{d.familyYears} = <b>{d.point}</b>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <p className="warn">{result.message}</p>
-        )}
-      </section>
+      {step === 4 && (
+        <section className="card result">
+          <h2>④ 结果</h2>
+          {result.ok ? (
+            <>
+              <p className="score">家庭总积分：{result.total}</p>
+              <p className="formula">{result.formulaText}</p>
+              <ul className="detail-list">
+                {result.detail.map((d) => (
+                  <li key={d.id}>
+                    <strong>{d.name}</strong>（{roleLabel(d.role)} / {relationLabel(d.relation)}）：
+                    基础{d.base} + 普通摇号{d.ordinaryYears} + 新能源轮候{d.newEnergyYears} +
+                    家庭申请{d.familyYears} = <b>{d.point}</b>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="warn">{result.message}</p>
+          )}
+        </section>
+      )}
 
-      <section className="card">
-        <h2>说明（给小白）</h2>
-        <ul>
-          <li>你不需要算分，只需要选“哪一年开始参与”。</li>
-          <li>本工具按“每满一年 +1”的规则自动换算成年限加分。</li>
-          <li>主申请人基础分 2，其他人基础分 1；含配偶时夫妻分按系数 2 处理。</li>
-          <li>最终以北京市小客车指标调控系统实时结果为准。</li>
-        </ul>
+      <section className="nav card">
+        <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))}>
+          上一步
+        </button>
+        <button type="button" onClick={() => setStep((s) => Math.min(4, s + 1))}>
+          下一步
+        </button>
       </section>
     </main>
   );
