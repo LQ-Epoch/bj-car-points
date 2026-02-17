@@ -3,14 +3,27 @@
 import { useMemo, useState } from "react";
 
 type MemberRole = "main" | "spouse" | "other";
+type MemberRelation = "self" | "spouse" | "parent" | "child" | "other";
 
 type Member = {
   id: number;
-  name: string;
   role: MemberRole;
-  ordinarySteps: number;
-  newEnergyWaitYears: number;
+  relation: MemberRelation;
+  name: string;
+  ordinaryStartYear: number | null;
+  newEnergyStartYear: number | null;
 };
+
+const START_YEAR = 2011;
+const nowYear = new Date().getUTCFullYear();
+
+function relationLabel(relation: MemberRelation) {
+  if (relation === "self") return "本人";
+  if (relation === "spouse") return "配偶";
+  if (relation === "parent") return "父母";
+  if (relation === "child") return "子女";
+  return "其他";
+}
 
 function roleLabel(role: MemberRole) {
   if (role === "main") return "主申请人";
@@ -22,22 +35,45 @@ function basePoint(role: MemberRole) {
   return role === "main" ? 2 : 1;
 }
 
-function calcMemberPoint(member: Member, familyApplyYears: number) {
-  const stepPoint = member.ordinarySteps + member.newEnergyWaitYears;
-  return basePoint(member.role) + stepPoint + familyApplyYears;
+function calcYears(startYear: number | null, statYear: number) {
+  if (!startYear) return 0;
+  if (startYear > statYear) return 0;
+  return statYear - startYear + 1;
+}
+
+function toYearOptions(statYear: number) {
+  return Array.from({ length: statYear - START_YEAR + 1 }, (_, i) => START_YEAR + i);
+}
+
+function createMember(id: number, relation: MemberRelation, role: MemberRole, name: string): Member {
+  return {
+    id,
+    relation,
+    role,
+    name,
+    ordinaryStartYear: null,
+    newEnergyStartYear: null,
+  };
 }
 
 export default function Home() {
-  const [includeSpouse, setIncludeSpouse] = useState(true);
+  const [statYear, setStatYear] = useState(nowYear);
+  const [familyApplyStartYear, setFamilyApplyStartYear] = useState<number | null>(null);
   const [generations, setGenerations] = useState(2);
-  const [familyApplyYears, setFamilyApplyYears] = useState(0);
+  const [includeSpouse, setIncludeSpouse] = useState(true);
   const [members, setMembers] = useState<Member[]>([
-    { id: 1, name: "主申请人", role: "main", ordinarySteps: 0, newEnergyWaitYears: 0 },
-    { id: 2, name: "配偶", role: "spouse", ordinarySteps: 0, newEnergyWaitYears: 0 },
-    { id: 3, name: "成员1", role: "other", ordinarySteps: 0, newEnergyWaitYears: 0 },
+    createMember(1, "self", "main", "主申请人"),
+    createMember(2, "spouse", "spouse", "配偶"),
   ]);
 
-  const visibleMembers = members.filter((m) => includeSpouse || m.role !== "spouse");
+  const yearOptions = useMemo(() => toYearOptions(statYear), [statYear]);
+
+  const visibleMembers = useMemo(
+    () => members.filter((m) => includeSpouse || m.role !== "spouse"),
+    [members, includeSpouse]
+  );
+
+  const familyApplyYears = calcYears(familyApplyStartYear, statYear);
 
   const result = useMemo(() => {
     const main = visibleMembers.find((m) => m.role === "main");
@@ -47,35 +83,66 @@ export default function Home() {
     if (!main) {
       return {
         ok: false,
-        message: "至少需要 1 名主申请人。",
+        message: "至少需要 1 位主申请人。",
         total: 0,
-        detail: [] as Array<{ name: string; point: number; role: MemberRole }>,
         formulaText: "",
+        detail: [] as Array<{
+          id: number;
+          name: string;
+          role: MemberRole;
+          relation: MemberRelation;
+          base: number;
+          ordinaryYears: number;
+          newEnergyYears: number;
+          familyYears: number;
+          point: number;
+        }>,
       };
     }
 
     if (includeSpouse && !spouse) {
       return {
         ok: false,
-        message: "已勾选“包含配偶”，但未添加配偶成员。",
+        message: "你选择了包含配偶，但当前没有配偶成员。",
         total: 0,
-        detail: [] as Array<{ name: string; point: number; role: MemberRole }>,
         formulaText: "",
+        detail: [] as Array<{
+          id: number;
+          name: string;
+          role: MemberRole;
+          relation: MemberRelation;
+          base: number;
+          ordinaryYears: number;
+          newEnergyYears: number;
+          familyYears: number;
+          point: number;
+        }>,
       };
     }
 
-    const detail = visibleMembers.map((m) => ({
-      name: m.name,
-      role: m.role,
-      point: calcMemberPoint(m, familyApplyYears),
-    }));
+    const detail = visibleMembers.map((m) => {
+      const ordinaryYears = calcYears(m.ordinaryStartYear, statYear);
+      const newEnergyYears = calcYears(m.newEnergyStartYear, statYear);
+      const base = basePoint(m.role);
+      const point = base + ordinaryYears + newEnergyYears + familyApplyYears;
+      return {
+        id: m.id,
+        name: m.name,
+        role: m.role,
+        relation: m.relation,
+        base,
+        ordinaryYears,
+        newEnergyYears,
+        familyYears: familyApplyYears,
+        point,
+      };
+    });
 
-    const mainPoint = calcMemberPoint(main, familyApplyYears);
-    const spousePoint = spouse ? calcMemberPoint(spouse, familyApplyYears) : 0;
-    const othersPoint = others.reduce(
-      (sum, m) => sum + calcMemberPoint(m, familyApplyYears),
-      0
-    );
+    const mainPoint = detail.find((d) => d.role === "main")?.point ?? 0;
+    const spousePoint = detail.find((d) => d.role === "spouse")?.point ?? 0;
+    const othersPoint = detail
+      .filter((d) => d.role === "other")
+      .reduce((sum, d) => sum + d.point, 0);
 
     const total = includeSpouse
       ? ((mainPoint + spousePoint) * 2 + othersPoint) * generations
@@ -85,31 +152,24 @@ export default function Home() {
       ? `总积分 = [(${mainPoint} + ${spousePoint}) × 2 + ${othersPoint}] × ${generations}`
       : `总积分 = (${mainPoint} + ${othersPoint}) × ${generations}`;
 
-    return {
-      ok: true,
-      message: "",
-      total,
-      detail,
-      formulaText,
-    };
-  }, [visibleMembers, includeSpouse, generations, familyApplyYears]);
+    return { ok: true, message: "", total, formulaText, detail };
+  }, [visibleMembers, includeSpouse, generations, familyApplyYears, statYear]);
 
   function updateMember(id: number, patch: Partial<Member>) {
     setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   }
 
-  function addOtherMember() {
+  function addMember(kind: "parent" | "child" | "other") {
     const nextId = members.length ? Math.max(...members.map((m) => m.id)) + 1 : 1;
-    setMembers((prev) => [
-      ...prev,
-      {
-        id: nextId,
-        name: `成员${nextId}`,
-        role: "other",
-        ordinarySteps: 0,
-        newEnergyWaitYears: 0,
-      },
-    ]);
+    if (kind === "parent") {
+      setMembers((prev) => [...prev, createMember(nextId, "parent", "other", `父母${nextId}`)]);
+      return;
+    }
+    if (kind === "child") {
+      setMembers((prev) => [...prev, createMember(nextId, "child", "other", `子女${nextId}`)]);
+      return;
+    }
+    setMembers((prev) => [...prev, createMember(nextId, "other", "other", `成员${nextId}`)]);
   }
 
   function removeMember(id: number) {
@@ -118,138 +178,166 @@ export default function Home() {
 
   return (
     <main className="container">
-      <h1>北京新能源家庭积分计算器（参考版）</h1>
-      <p className="muted">
-        用于估算家庭申请新能源小客车指标时的家庭总积分。
-        <br />
-        计算规则参考北京市政策解读与公开说明，最终以官方系统实时计算结果为准。
-      </p>
+      <div className="hero card">
+        <div>
+          <h1>北京新能源家庭积分计算器</h1>
+          <p className="muted">
+            按“年份下拉选择”设计：不让用户填抽象分数，只要选“哪年开始参与普通摇号 /
+            新能源轮候”，自动估算积分。
+          </p>
+        </div>
+        <span className="badge">傻瓜版</span>
+      </div>
 
       <section className="card">
-        <h2>1) 家庭参数</h2>
-        <div className="grid two">
+        <h2>① 家庭设置</h2>
+        <div className="grid three">
           <label>
-            家庭申请年限（满一年加 1 分）
-            <input
-              type="number"
-              min={0}
-              value={familyApplyYears}
-              onChange={(e) => setFamilyApplyYears(Math.max(0, Number(e.target.value || 0)))}
-            />
+            统计到哪一年
+            <select value={statYear} onChange={(e) => setStatYear(Number(e.target.value))}>
+              {Array.from({ length: 16 }, (_, i) => nowYear - i)
+                .sort((a, b) => a - b)
+                .map((year) => (
+                  <option key={year} value={year}>
+                    {year} 年
+                  </option>
+                ))}
+            </select>
           </label>
 
           <label>
-            家庭代际数（1-3）
-            <input
-              type="number"
-              min={1}
-              max={3}
-              value={generations}
-              onChange={(e) => {
-                const n = Number(e.target.value || 1);
-                setGenerations(Math.min(3, Math.max(1, n)));
-              }}
-            />
+            家庭申请开始年份
+            <select
+              value={familyApplyStartYear ?? ""}
+              onChange={(e) =>
+                setFamilyApplyStartYear(e.target.value ? Number(e.target.value) : null)
+              }
+            >
+              <option value="">未开始 / 不确定</option>
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year} 年
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            家庭代际数
+            <select value={generations} onChange={(e) => setGenerations(Number(e.target.value))}>
+              <option value={1}>1 代</option>
+              <option value={2}>2 代</option>
+              <option value={3}>3 代</option>
+            </select>
           </label>
         </div>
 
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={includeSpouse}
-            onChange={(e) => setIncludeSpouse(e.target.checked)}
-          />
-          家庭申请人中包含主申请人配偶
+        <label>
+          是否包含配偶
+          <select
+            value={includeSpouse ? "yes" : "no"}
+            onChange={(e) => setIncludeSpouse(e.target.value === "yes")}
+          >
+            <option value="yes">包含</option>
+            <option value="no">不包含</option>
+          </select>
         </label>
+
+        <p className="muted small">家庭申请加分年限：{familyApplyYears} 年</p>
       </section>
 
       <section className="card">
-        <h2>2) 成员积分</h2>
-        <p className="muted small">
-          个人积分 = 基础积分 + 阶梯(轮候)积分 + 家庭申请年限加分。
-          <br />
-          建议：不适用项填 0；“普通摇号阶梯数”和“新能源轮候年限”请按个人实际情况填写。
-        </p>
-
-        <div className="members">
-          {members
-            .filter((m) => includeSpouse || m.role !== "spouse")
-            .map((m) => {
-              const point = calcMemberPoint(m, familyApplyYears);
-              return (
-                <div className="member" key={m.id}>
-                  <div className="member-head">
-                    <strong>{roleLabel(m.role)}</strong>
-                    {m.role === "other" && (
-                      <button type="button" onClick={() => removeMember(m.id)}>
-                        删除
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid three">
-                    <label>
-                      称呼
-                      <input
-                        type="text"
-                        value={m.name}
-                        onChange={(e) => updateMember(m.id, { name: e.target.value })}
-                      />
-                    </label>
-
-                    <label>
-                      普通摇号阶梯数
-                      <input
-                        type="number"
-                        min={0}
-                        value={m.ordinarySteps}
-                        onChange={(e) =>
-                          updateMember(m.id, {
-                            ordinarySteps: Math.max(0, Number(e.target.value || 0)),
-                          })
-                        }
-                      />
-                    </label>
-
-                    <label>
-                      新能源轮候年限（整年）
-                      <input
-                        type="number"
-                        min={0}
-                        value={m.newEnergyWaitYears}
-                        onChange={(e) =>
-                          updateMember(m.id, {
-                            newEnergyWaitYears: Math.max(0, Number(e.target.value || 0)),
-                          })
-                        }
-                      />
-                    </label>
-                  </div>
-
-                  <p className="muted small">
-                    基础积分 {basePoint(m.role)} + 阶梯(轮候)积分 {m.ordinarySteps + m.newEnergyWaitYears}
-                    + 家庭申请年限 {familyApplyYears} = <strong>{point}</strong>
-                  </p>
-                </div>
-              );
-            })}
+        <h2>② 家庭成员（全下拉）</h2>
+        <div className="actions">
+          <button type="button" onClick={() => addMember("parent")}>+ 添加父母</button>
+          <button type="button" onClick={() => addMember("child")}>+ 添加子女</button>
+          <button type="button" onClick={() => addMember("other")}>+ 添加其他成员</button>
         </div>
 
-        <button type="button" onClick={addOtherMember}>
-          + 添加其他成员
-        </button>
+        <div className="members">
+          {visibleMembers.map((m) => {
+            return (
+              <article className="member" key={m.id}>
+                <div className="member-head">
+                  <div>
+                    <strong>{m.name}</strong>
+                    <p className="muted small">
+                      {roleLabel(m.role)} · {relationLabel(m.relation)}
+                    </p>
+                  </div>
+                  {m.role !== "main" && (
+                    <button className="danger" type="button" onClick={() => removeMember(m.id)}>
+                      删除
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid three">
+                  <label>
+                    成员称呼
+                    <input
+                      type="text"
+                      value={m.name}
+                      onChange={(e) => updateMember(m.id, { name: e.target.value })}
+                    />
+                  </label>
+
+                  <label>
+                    普通摇号开始年份
+                    <select
+                      value={m.ordinaryStartYear ?? ""}
+                      onChange={(e) =>
+                        updateMember(m.id, {
+                          ordinaryStartYear: e.target.value ? Number(e.target.value) : null,
+                        })
+                      }
+                    >
+                      <option value="">未参与</option>
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year} 年
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    新能源轮候开始年份
+                    <select
+                      value={m.newEnergyStartYear ?? ""}
+                      onChange={(e) =>
+                        updateMember(m.id, {
+                          newEnergyStartYear: e.target.value ? Number(e.target.value) : null,
+                        })
+                      }
+                    >
+                      <option value="">未参与</option>
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year} 年
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       <section className="card result">
-        <h2>3) 计算结果</h2>
+        <h2>③ 计算结果</h2>
         {result.ok ? (
           <>
             <p className="score">家庭总积分：{result.total}</p>
             <p className="formula">{result.formulaText}</p>
-            <ul>
+            <ul className="detail-list">
               {result.detail.map((d) => (
-                <li key={`${d.role}-${d.name}`}>
-                  {d.name}（{roleLabel(d.role)}）：{d.point} 分
+                <li key={d.id}>
+                  <strong>{d.name}</strong>（{roleLabel(d.role)} / {relationLabel(d.relation)}）：
+                  基础{d.base} + 普通摇号{d.ordinaryYears} + 新能源轮候{d.newEnergyYears} +
+                  家庭申请{d.familyYears} = <b>{d.point}</b>
                 </li>
               ))}
             </ul>
@@ -260,31 +348,13 @@ export default function Home() {
       </section>
 
       <section className="card">
-        <h2>规则参考</h2>
+        <h2>说明（给小白）</h2>
         <ul>
-          <li>
-            家庭主申请人基础积分 2 分；其他家庭申请人基础积分每人 1 分。
-          </li>
-          <li>
-            家庭申请每满一年，所有家庭申请人积分各增加 1 分。
-          </li>
-          <li>
-            含配偶时：总积分 = [(主申请人积分 + 配偶积分) × 2 + 其他成员积分之和] × 家庭代际数。
-          </li>
-          <li>
-            不含配偶时：总积分 = (主申请人积分 + 其他成员积分之和) × 家庭代际数。
-          </li>
+          <li>你不需要算分，只需要选“哪一年开始参与”。</li>
+          <li>本工具按“每满一年 +1”的规则自动换算成年限加分。</li>
+          <li>主申请人基础分 2，其他人基础分 1；含配偶时夫妻分按系数 2 处理。</li>
+          <li>最终以北京市小客车指标调控系统实时结果为准。</li>
         </ul>
-        <p className="muted small">
-          参考：
-          <a href="https://www.beijing.gov.cn/zhengce/zcjd/zcwd/jtjf/" target="_blank">
-            北京市政府门户“北京摇号新政——如何计算家庭积分？”
-          </a>
-          、
-          <a href="https://bj.bendibao.com/news/202115/286327.shtm" target="_blank">
-            北京本地宝政策整理页（含公式）
-          </a>
-        </p>
       </section>
     </main>
   );
