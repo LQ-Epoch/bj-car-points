@@ -259,6 +259,20 @@ export default function Home() {
       };
     }
 
+    const hasAnyPolicyInput =
+      familyApplyStartYear !== null ||
+      visibleMembers.some((m) => m.ordinaryStartYear !== null || m.newEnergyStartYear !== null);
+
+    if (!hasAnyPolicyInput) {
+      return {
+        ok: false,
+        message: "你还没填任何参与信息（家庭申请年限/普通摇号/新能源轮候），暂不计算总分。",
+        total: 0,
+        formulaText: "",
+        detail: [] as any[],
+      };
+    }
+
     const detail = visibleMembers.map((m) => {
       const ordinary = calcOrdinaryStepDetail(m, statYear);
       const queueYears = calcFullYears(m.newEnergyStartYear, statYear);
@@ -300,7 +314,7 @@ export default function Home() {
       : `总积分 = (${mainPoint} + ${othersPoint}) × ${generations}`;
 
     return { ok: true, message: "", total, formulaText, detail };
-  }, [visibleMembers, includeSpouse, generations, familyApplyYears, statYear]);
+  }, [visibleMembers, includeSpouse, generations, familyApplyYears, familyApplyStartYear, statYear]);
 
   const prediction = useMemo(
     () =>
