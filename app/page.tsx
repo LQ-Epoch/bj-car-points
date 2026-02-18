@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 
 type MemberRole = "main" | "spouse" | "other";
 type MemberRelation = "self" | "spouse" | "parent" | "child" | "other";
-type IndicatorType = "newEnergy" | "ordinary";
 type Half = "H1" | "H2";
 
 type Member = {
@@ -211,10 +210,8 @@ function linearPredict(history: HistoryPoint[], nextYears: number[]) {
 
 export default function Home() {
   const [step, setStep] = useState(1);
-  const [indicatorType, setIndicatorType] = useState<IndicatorType>("newEnergy");
-  const [ordinaryBatch, setOrdinaryBatch] = useState<Half>("H1");
 
-  const [statYear, setStatYear] = useState(nowYear);
+  const statYear = nowYear;
   const [familyApplyStartYear, setFamilyApplyStartYear] = useState<number | null>(null);
   const [generations, setGenerations] = useState(2);
   const [includeSpouse, setIncludeSpouse] = useState(true);
@@ -228,19 +225,14 @@ export default function Home() {
     { year: nowYear, point: null },
   ]);
 
-  const yearOptions = useMemo(() => toYearOptions(statYear), [statYear]);
+  const yearOptions = toYearOptions(statYear);
   const visibleMembers = useMemo(
     () => members.filter((m) => includeSpouse || m.role !== "spouse"),
     [members, includeSpouse]
   );
   const familyApplyYears = calcFullYears(familyApplyStartYear, statYear);
 
-  const deadlineText =
-    indicatorType === "newEnergy"
-      ? `${statYear} 年家庭新能源指标申请截止：${statYear}-03-08 24:00（以当年公告为准）`
-      : ordinaryBatch === "H1"
-      ? `${statYear} 年油牌（普通指标）上半年申请截止：${statYear}-03-08 24:00（以当年公告为准）`
-      : `${statYear} 年油牌（普通指标）下半年申请截止：${statYear}-10-08 24:00（以当年公告为准）`;
+  const deadlineText = `${statYear} 年常见申请时间口径：上半年 3月8日 24:00，下半年 10月8日 24:00（以当年公告为准）`;
 
   const result = useMemo(() => {
     const main = visibleMembers.find((m) => m.role === "main");
@@ -374,46 +366,10 @@ export default function Home() {
 
       {step === 1 && (
         <section className="card">
-          <h2>① 指标类型 & 截止时间</h2>
-          <div className="grid three">
-            <label>
-              你要算哪种指标
-              <select
-                value={indicatorType}
-                onChange={(e) => setIndicatorType(e.target.value as IndicatorType)}
-              >
-                <option value="newEnergy">新能源指标</option>
-                <option value="ordinary">油牌（普通指标）</option>
-              </select>
-            </label>
-
-            {indicatorType === "ordinary" && (
-              <label>
-                油牌批次
-                <select
-                  value={ordinaryBatch}
-                  onChange={(e) => setOrdinaryBatch(e.target.value as Half)}
-                >
-                  <option value="H1">上半年批次</option>
-                  <option value="H2">下半年批次</option>
-                </select>
-              </label>
-            )}
-
-            <label>
-              统计年份
-              <select value={statYear} onChange={(e) => setStatYear(Number(e.target.value))}>
-                {Array.from({ length: 16 }, (_, i) => nowYear - i)
-                  .sort((a, b) => a - b)
-                  .map((year) => (
-                    <option key={year} value={year}>
-                      {year} 年
-                    </option>
-                  ))}
-              </select>
-            </label>
-          </div>
-
+          <h2>① 简化输入说明</h2>
+          <p className="muted">
+            已切换为“最少必要输入”：你只需要填家庭申请开始年份、是否含配偶、家庭代际数，以及每位成员是否参加普通摇号/新能源轮候的开始年份。
+          </p>
           <p className="deadline">{deadlineText}</p>
         </section>
       )}
@@ -490,7 +446,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="grid four">
+                <div className="grid three">
                   <label>
                     成员称呼
                     <input
@@ -519,16 +475,7 @@ export default function Home() {
                     </select>
                   </label>
 
-                  <label>
-                    普通摇号开始时段
-                    <select
-                      value={m.ordinaryStartHalf}
-                      onChange={(e) => updateMember(m.id, { ordinaryStartHalf: e.target.value as Half })}
-                    >
-                      <option value="H1">上半年</option>
-                      <option value="H2">下半年</option>
-                    </select>
-                  </label>
+                  <p className="muted small">普通摇号开始时段默认按上半年估算（简化输入）。</p>
 
                   <label>
                     新能源轮候开始年份
