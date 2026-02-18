@@ -15,6 +15,7 @@ type Member = {
   ordinaryStartYear: number | null;
   ordinaryStartHalf: Half;
   newEnergyStartYear: number | null;
+  hasC5: boolean;
 };
 
 type HistoryPoint = {
@@ -43,21 +44,11 @@ function basePoint(role: MemberRole) {
   return role === "main" ? 2 : 1;
 }
 
-function calcYears(startYear: number | null, statYear: number) {
-  if (!startYear || startYear > statYear) return 0;
-  return statYear - startYear + 1;
-}
-
-function calcOrdinaryRounds(startYear: number | null, half: Half, statYear: number) {
-  if (!startYear || startYear > statYear) return 0;
-  const fullYearsAfter = Math.max(0, statYear - startYear);
-  const firstYearRounds = half === "H1" ? 6 : 3;
-  return firstYearRounds + fullYearsAfter * 6;
-}
-
-function calcOrdinaryStep(rounds: number) {
-  if (rounds <= 0) return 0;
-  return 1 + Math.floor((rounds - 1) / 24);
+// 每满一年（统计年上一年12月31日前）
+function calcFullYears(startYear: number | null, statYear: number) {
+  if (!startYear) return 0;
+  const years = statYear - startYear;
+  return years > 0 ? years : 0;
 }
 
 function toYearOptions(statYear: number) {
@@ -73,6 +64,7 @@ function createMember(id: number, relation: MemberRelation, role: MemberRole, na
     ordinaryStartYear: null,
     ordinaryStartHalf: "H1",
     newEnergyStartYear: null,
+    hasC5: false,
   };
 }
 
@@ -81,6 +73,72 @@ function createDefaultMembers() {
     createMember(1, "self", "main", "主申请人"),
     createMember(2, "spouse", "spouse", "配偶"),
   ];
+}
+
+// 估算某时间段普通摇号参与期数（工程估算口径：每年6期）
+function calcRoundsInPeriod(
+  startYear: number | null,
+  half: Half,
+  periodFromYear: number,
+  periodToYear: number
+) {
+  if (!startYear || periodFromYear > periodToYear || startYear > periodToYear) return 0;
+
+  const beginYear = Math.max(startYear, periodFromYear);
+  let rounds = 0;
+
+  for (let y = beginYear; y <= periodToYear; y += 1) {
+    if (y === startYear) {
+      rounds += half === "H1" ? 6 : 3;
+    } else {
+      rounds += 6;
+    }
+  }
+
+  return rounds;
+}
+
+// 截至2020-12-31：1-2次=1分，3-4次=2分 ... 73-78次=13分
+function legacyStepByRounds(rounds: number) {
+  if (rounds <= 0) return 0;
+  return Math.min(13, Math.ceil(rounds / 2));
+}
+
+// 2021-01-01后：1-6次=1分，7-12次=2分...
+function post2021StepByRounds(rounds: number) {
+  if (rounds <= 0) return 0;
+  return Math.ceil(rounds / 6);
+}
+
+function calcOrdinaryStepDetail(member: Member, statYear: number) {
+  if (!member.ordinaryStartYear) {
+    return {
+      pre2020Rounds: 0,
+      post2021Rounds: 0,
+      pre2020Step: 0,
+      post2021Step: 0,
+      c5Extra: 0,
+      totalStep: 0,
+    };
+  }
+
+  const pre2020Rounds = calcRoundsInPeriod(member.ordinaryStartYear, member.ordinaryStartHalf, START_YEAR, 2020);
+  const post2021Rounds = calcRoundsInPeriod(member.ordinaryStartYear, member.ordinaryStartHalf, 2021, statYear);
+
+  const pre2020Step = legacyStepByRounds(pre2020Rounds);
+  const post2021Step = post2021StepByRounds(post2021Rounds);
+
+  const hasOrdinary = pre2020Rounds + post2021Rounds > 0;
+  const c5Extra = hasOrdinary && member.role === "main" && member.hasC5 ? 1 : 0;
+
+  return {
+    pre2020Rounds,
+    post2021Rounds,
+    pre2020Step,
+    post2021Step,
+    c5Extra,
+    totalStep: pre2020Step + post2021Step + c5Extra,
+  };
 }
 
 function linearPredict(history: HistoryPoint[], nextYears: number[]) {
@@ -129,7 +187,7 @@ export default function Home() {
     () => members.filter((m) => includeSpouse || m.role !== "spouse"),
     [members, includeSpouse]
   );
-  const familyApplyYears = calcYears(familyApplyStartYear, statYear);
+  const familyApplyYears = calcFullYears(familyApplyStartYear, statYear);
 
   const deadlineText =
     indicatorType === "newEnergy"
@@ -156,20 +214,26 @@ export default function Home() {
     }
 
     const detail = visibleMembers.map((m) => {
-      const rounds = calcOrdinaryRounds(m.ordinaryStartYear, m.ordinaryStartHalf, statYear);
-      const ordinaryStep = calcOrdinaryStep(rounds);
-      const newEnergyYears = calcYears(m.newEnergyStartYear, statYear);
+      const ordinary = calcOrdinaryStepDetail(m, statYear);
+      const queueYears = calcFullYears(m.newEnergyStartYear, statYear);
       const base = basePoint(m.role);
-      const point = base + ordinaryStep + newEnergyYears + familyApplyYears;
+      const queueStep = queueYears;
+      const stageStep = ordinary.totalStep + queueStep;
+      const point = base + stageStep + familyApplyYears;
+
       return {
         id: m.id,
         name: m.name,
         role: m.role,
         relation: m.relation,
         base,
-        rounds,
-        ordinaryStep,
-        newEnergyYears,
+        pre2020Rounds: ordinary.pre2020Rounds,
+        post2021Rounds: ordinary.post2021Rounds,
+        pre2020Step: ordinary.pre2020Step,
+        post2021Step: ordinary.post2021Step,
+        c5Extra: ordinary.c5Extra,
+        ordinaryStep: ordinary.totalStep,
+        queueStep,
         familyYears: familyApplyYears,
         point,
       };
@@ -234,11 +298,11 @@ export default function Home() {
         <div>
           <h1>北京小客车家庭积分计算器（官方规则版）</h1>
           <p className="muted">
-            采用官方积分框架：主申请人2分、其他成员1分；普通摇号按“参与期数→阶梯积分”折算；
-            新能源轮候按年折算；家庭申请每满一年全员+1；配偶系数与代际系数按政策公式计算。
+            新口径：个人分=基础分+阶梯（轮候）分；家庭总分按是否含配偶套用公式，并乘家庭代际数。
+            阶梯分拆分为“普通摇号阶梯 + 新能源轮候年限分”，家庭申请每满一年全员加1分。
           </p>
         </div>
-        <span className="badge">重新按政策重构</span>
+        <span className="badge">按 AGENTS 规则重算</span>
       </div>
 
       <section className="card stepper">
@@ -336,13 +400,13 @@ export default function Home() {
             </label>
           </div>
 
-          <p className="muted small">家庭申请加分年限：{familyApplyYears} 年</p>
+          <p className="muted small">家庭申请年限加分：每满一年 +1，当前计入 {familyApplyYears} 年</p>
         </section>
       )}
 
       {step === 3 && (
         <section className="card">
-          <h2>③ 成员年份信息（不填分数）</h2>
+          <h2>③ 成员信息（不手填分值）</h2>
           <div className="actions">
             <button type="button" onClick={() => addMember("parent")}>+ 添加父母</button>
             <button type="button" onClick={() => addMember("child")}>+ 添加子女</button>
@@ -425,6 +489,21 @@ export default function Home() {
                     </select>
                   </label>
                 </div>
+
+                {m.role === "main" && (
+                  <div className="grid three" style={{ marginTop: 10 }}>
+                    <label>
+                      主申请人是否具备 C5 驾照
+                      <select
+                        value={m.hasC5 ? "yes" : "no"}
+                        onChange={(e) => updateMember(m.id, { hasC5: e.target.value === "yes" })}
+                      >
+                        <option value="no">否</option>
+                        <option value="yes">是（额外+1阶）</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -443,8 +522,9 @@ export default function Home() {
                   {result.detail.map((d) => (
                     <li key={d.id}>
                       <strong>{d.name}</strong>（{roleLabel(d.role)} / {relationLabel(d.relation)}）：
-                      基础{d.base} + 普通阶梯{d.ordinaryStep}(按参与{d.rounds}期折算) +
-                      新能源轮候{d.newEnergyYears} + 家庭申请{d.familyYears} = <b>{d.point}</b>
+                      基础{d.base} + 普通阶梯{d.ordinaryStep}
+                      （2020前{d.pre2020Step}分, 2021后{d.post2021Step}分{d.c5Extra ? `, C5加${d.c5Extra}` : ""}） +
+                      新能源轮候{d.queueStep} + 家庭申请{d.familyYears} = <b>{d.point}</b>
                     </li>
                   ))}
                 </ul>
@@ -457,8 +537,8 @@ export default function Home() {
           <section className="card">
             <h2>⑤ 未来5年分数预测（趋势法）</h2>
             <p className="muted small">
-              请先录入近5年你观察到的“入围分/最低分”（官方公布历史），系统用线性趋势预测未来5年。
-              这不是官方预测，仅用于粗略参考。
+              请录入近5年官方历史“入围分/最低分”，系统用线性趋势预测未来5年。
+              这不是官方预测，仅用于辅助参考。
             </p>
 
             <div className="grid five">
@@ -497,12 +577,13 @@ export default function Home() {
       </section>
 
       <section className="card">
-        <h2>官方规则口径（实现说明）</h2>
+        <h2>规则说明（当前实现）</h2>
         <ul>
-          <li>家庭总积分公式采用官方口径：含配偶 / 不含配偶两套公式。</li>
-          <li>个人分 = 基础分 + 普通阶梯积分 + 新能源轮候积分 + 家庭申请年限积分。</li>
-          <li>普通阶梯积分按“参与期数每24期晋一阶”折算；本工具用开始年份与上/下半年估算参与期数。</li>
-          <li>截止时间展示“3月8日 / 10月8日”分批口径，最终以当年官方公告与系统为准。</li>
+          <li>家庭申请人积分 = 基础积分 + 阶梯（轮候）积分；家庭申请每满一年，全员+1。</li>
+          <li>普通摇号阶梯采用分段映射：2020年前与2021年后分别估算并合并（可配置）。</li>
+          <li>主申请人若具备 C5，且在参与普通摇号时，额外增加1个阶梯分。</li>
+          <li>家庭总积分按含配偶/不含配偶两套公式计算，并乘家庭代际数（最多3代）。</li>
+          <li>普通指标截止口径：3月8日/10月8日；新能源同分按最早注册时间排序。</li>
         </ul>
       </section>
     </main>
