@@ -98,16 +98,62 @@ function calcRoundsInPeriod(
   return rounds;
 }
 
-// 截至2020-12-31：1-2次=1分，3-4次=2分 ... 73-78次=13分
-function legacyStepByRounds(rounds: number) {
+type StepRange = { min: number; max: number; step: number };
+
+// 可配置映射表：避免写死在算法里（可按年度政策更新）
+const PRE2020_STEP_TABLE: StepRange[] = [
+  { min: 1, max: 2, step: 1 },
+  { min: 3, max: 4, step: 2 },
+  { min: 5, max: 6, step: 3 },
+  { min: 7, max: 8, step: 4 },
+  { min: 9, max: 10, step: 5 },
+  { min: 11, max: 12, step: 6 },
+  { min: 13, max: 14, step: 7 },
+  { min: 15, max: 16, step: 8 },
+  { min: 17, max: 18, step: 9 },
+  { min: 19, max: 20, step: 10 },
+  { min: 21, max: 22, step: 11 },
+  { min: 23, max: 24, step: 12 },
+  { min: 25, max: 78, step: 13 },
+];
+
+const POST2021_STEP_TABLE: StepRange[] = [
+  { min: 1, max: 6, step: 1 },
+  { min: 7, max: 12, step: 2 },
+  { min: 13, max: 18, step: 3 },
+  { min: 19, max: 24, step: 4 },
+  { min: 25, max: 30, step: 5 },
+  { min: 31, max: 36, step: 6 },
+  { min: 37, max: 42, step: 7 },
+  { min: 43, max: 48, step: 8 },
+  { min: 49, max: 54, step: 9 },
+  { min: 55, max: 60, step: 10 },
+  { min: 61, max: 66, step: 11 },
+  { min: 67, max: 72, step: 12 },
+  { min: 73, max: 78, step: 13 },
+];
+
+function mapStepByTable(rounds: number, table: StepRange[]) {
   if (rounds <= 0) return 0;
-  return Math.min(13, Math.ceil(rounds / 2));
+  const hit = table.find((r) => rounds >= r.min && rounds <= r.max);
+  if (hit) return hit.step;
+
+  const last = table[table.length - 1];
+  if (!last) return 0;
+  if (rounds <= last.max) return last.step;
+
+  // 超出已配置上限时按末段步长外推（默认每6次+1，可按政策调整）
+  return last.step + Math.floor((rounds - last.max) / 6);
+}
+
+// 截至2020-12-31：1-2次=1分，3-4次=2分 ...
+function legacyStepByRounds(rounds: number) {
+  return mapStepByTable(rounds, PRE2020_STEP_TABLE);
 }
 
 // 2021-01-01后：1-6次=1分，7-12次=2分...
 function post2021StepByRounds(rounds: number) {
-  if (rounds <= 0) return 0;
-  return Math.ceil(rounds / 6);
+  return mapStepByTable(rounds, POST2021_STEP_TABLE);
 }
 
 function calcOrdinaryStepDetail(member: Member, statYear: number) {
@@ -667,6 +713,28 @@ export default function Home() {
         </div>
 
         <p className="muted small">说明：上述算例为演示口径，最终以当年政策公告和系统实时计算结果为准。</p>
+
+        <h3>4）网络整合依据（本次重算）</h3>
+        <ul>
+          <li>
+            官方政策解读：
+            <a href="https://www.beijing.gov.cn/zhengce/zcjd/zcwd/jtjf/" target="_blank" rel="noreferrer">
+              首都之窗《北京摇号新政——如何计算家庭积分？》
+            </a>
+          </li>
+          <li>
+            办事说明入口（部分网络环境可能403）：
+            <a href="https://xkczb.jtw.beijing.gov.cn/bszn/20201230/1609342087846_1.html" target="_blank" rel="noreferrer">
+              北京小客车指标调控系统办事指南
+            </a>
+          </li>
+          <li>
+            规则交叉核对（非官方，仅辅助校验文本一致性）：
+            <a href="https://bj.bendibao.com/news/202115/286327.shtm" target="_blank" rel="noreferrer">
+              北京本地宝《家庭摇号积分计算方式》
+            </a>
+          </li>
+        </ul>
       </section>
     </main>
   );
