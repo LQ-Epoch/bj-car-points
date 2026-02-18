@@ -2,69 +2,99 @@
   box-sizing: border-box;
 }
 
+:root {
+  --bg: #f3f6fb;
+  --card: #ffffff;
+  --line: #dbe4f0;
+  --text: #0f172a;
+  --muted: #5b6b83;
+  --brand: #2563eb;
+  --brand-soft: #eaf1ff;
+  --ok: #0f766e;
+  --warn-bg: #fff7ed;
+  --warn-line: #fed7aa;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  background: #f8fafc;
-  color: #0f172a;
+  background:
+    radial-gradient(circle at 0 0, #eef4ff 0, transparent 40%),
+    radial-gradient(circle at 100% 0, #effcf7 0, transparent 30%),
+    var(--bg);
+  color: var(--text);
 }
 
 a {
-  color: #2563eb;
+  color: var(--brand);
 }
 
 .container {
-  max-width: 980px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 24px 16px 60px;
+  padding: 28px 16px 72px;
 }
 
 h1 {
   margin: 0 0 10px;
-  font-size: 30px;
+  font-size: clamp(26px, 3vw, 34px);
+  line-height: 1.25;
 }
 
 h2 {
   margin: 0 0 12px;
-  font-size: 20px;
+  font-size: 21px;
+}
+
+h3 {
+  margin: 14px 0 10px;
+  font-size: 17px;
+}
+
+h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
 }
 
 .card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
   padding: 16px;
   margin-top: 14px;
-  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.04);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
 }
 
 .hero {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
+  border: 1px solid #cfe0ff;
+  background: linear-gradient(120deg, #ffffff 0, #f8fbff 55%, #f2faff 100%);
 }
 
 .badge {
-  background: #dbeafe;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
+  background: var(--brand-soft);
+  color: #1d4ed8;
+  border: 1px solid #bfd2ff;
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   font-size: 12px;
   white-space: nowrap;
+  font-weight: 600;
 }
 
 .deadline {
   margin-top: 10px;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid #fde68a;
-  background: #fffbeb;
-  color: #92400e;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--warn-line);
+  background: var(--warn-bg);
+  color: #9a3412;
   font-weight: 600;
 }
 
@@ -78,7 +108,7 @@ h2 {
 }
 
 .grid.four {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .grid.five {
@@ -91,31 +121,43 @@ label {
   gap: 6px;
   font-size: 14px;
   margin-top: 8px;
+  color: #1f2937;
+  font-weight: 500;
 }
 
 input[type="text"],
 input[type="number"],
 select {
   width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 9px 10px;
+  border: 1px solid #c9d6e8;
+  border-radius: 12px;
+  padding: 10px 11px;
   font-size: 14px;
   background: #fff;
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #7aa2ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 button {
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
+  border: 1px solid #bdd2ff;
+  background: #eff5ff;
   color: #1e3a8a;
-  border-radius: 10px;
-  padding: 8px 12px;
+  border-radius: 12px;
+  padding: 9px 13px;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 600;
 }
 
 button:hover {
-  background: #dbeafe;
+  background: #dfebff;
 }
 
 button.danger {
@@ -138,20 +180,37 @@ button.danger {
 }
 
 .step {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border: 1px solid #d7e1ef;
+  border-radius: 12px;
   padding: 8px;
   text-align: center;
   font-size: 13px;
-  color: #64748b;
-  background: #f8fafc;
+  color: #6b7d95;
+  background: #f8fbff;
 }
 
 .step.on {
-  border-color: #93c5fd;
+  border-color: #8eb4ff;
   color: #1d4ed8;
-  background: #eff6ff;
-  font-weight: 600;
+  background: #edf3ff;
+  font-weight: 700;
+}
+
+.workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 14px;
+  align-items: start;
+}
+
+.workbench-main {
+  min-width: 0;
+}
+
+.workbench-side {
+  position: sticky;
+  top: 12px;
+  background: linear-gradient(180deg, #ffffff 0, #f8fbff 100%);
 }
 
 .members {
@@ -161,10 +220,10 @@ button.danger {
 }
 
 .member {
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border: 1px solid #d9e5f3;
+  border-radius: 14px;
   padding: 12px;
-  background: #f8fafc;
+  background: #fafcff;
 }
 
 .member-head {
@@ -175,7 +234,7 @@ button.danger {
 }
 
 .muted {
-  color: #64748b;
+  color: var(--muted);
 }
 
 .small {
@@ -185,18 +244,27 @@ button.danger {
 
 .result .score {
   margin: 6px 0;
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 800;
-  color: #0f766e;
+  color: var(--ok);
+}
+
+.score-mini {
+  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ok);
 }
 
 .formula {
   margin: 8px 0 12px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: #f1f5f9;
+  padding: 9px 11px;
+  border-radius: 12px;
+  border: 1px solid #dbe4f3;
+  background: #f5f8fc;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .detail-list {
@@ -216,7 +284,7 @@ button.danger {
   display: grid;
   gap: 10px;
   margin: 10px 0 14px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
 }
 
 .icon-card {
@@ -249,6 +317,7 @@ button.danger {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  min-width: 620px;
 }
 
 .policy-table th,
@@ -271,43 +340,15 @@ button.danger {
 }
 
 .example-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #deebf8;
   border-radius: 12px;
   padding: 10px;
   background: #fcfdff;
 }
 
-.example-card h4 {
-  margin: 0 0 8px;
-  font-size: 15px;
-}
-
 .example-card p {
   margin: 0 0 8px;
   font-size: 14px;
-}
-
-.workbench {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 14px;
-  align-items: start;
-}
-
-.workbench-main {
-  min-width: 0;
-}
-
-.workbench-side {
-  position: sticky;
-  top: 12px;
-}
-
-.score-mini {
-  margin: 0 0 8px;
-  font-size: 24px;
-  font-weight: 800;
-  color: #0f766e;
 }
 
 .nav {
@@ -329,5 +370,9 @@ button.danger {
 @media (max-width: 700px) {
   .stepper {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .container {
+    padding: 20px 12px 56px;
   }
 }
