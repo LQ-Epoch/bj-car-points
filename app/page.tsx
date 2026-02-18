@@ -358,21 +358,24 @@ export default function Home() {
       </div>
 
       <section className="card stepper">
-        <div className={`step ${step >= 1 ? "on" : ""}`}>1. 指标类型与截止时间</div>
+        <div className={`step ${step >= 1 ? "on" : ""}`}>1. 参数说明与截止时间</div>
         <div className={`step ${step >= 2 ? "on" : ""}`}>2. 家庭基础参数</div>
         <div className={`step ${step >= 3 ? "on" : ""}`}>3. 成员信息（年份）</div>
         <div className={`step ${step >= 4 ? "on" : ""}`}>4. 结果与5年预测</div>
       </section>
 
-      {step === 1 && (
-        <section className="card">
-          <h2>① 简化输入说明</h2>
-          <p className="muted">
-            已切换为“最少必要输入”：你只需要填家庭申请开始年份、是否含配偶、家庭代际数，以及每位成员是否参加普通摇号/新能源轮候的开始年份。
-          </p>
-          <p className="deadline">{deadlineText}</p>
-        </section>
-      )}
+      <div className="workbench">
+        <div className="workbench-main">
+          {step === 1 && (
+            <section className="card">
+              <h2>① 参数说明（含上/下半年）</h2>
+              <p className="muted">
+                计算按官方口径拆分：普通摇号次数会根据你选择的“开始年份 + 上/下半年”估算，
+                上半年首年按6期、下半年首年按3期（后续完整年份按6期），再映射到阶梯分。
+              </p>
+              <p className="deadline">{deadlineText}</p>
+            </section>
+          )}
 
       {step === 2 && (
         <section className="card">
@@ -446,7 +449,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="grid three">
+                <div className="grid four">
                   <label>
                     成员称呼
                     <input
@@ -475,7 +478,16 @@ export default function Home() {
                     </select>
                   </label>
 
-                  <p className="muted small">普通摇号开始时段默认按上半年估算（简化输入）。</p>
+                  <label>
+                    普通摇号开始时段
+                    <select
+                      value={m.ordinaryStartHalf}
+                      onChange={(e) => updateMember(m.id, { ordinaryStartHalf: e.target.value as Half })}
+                    >
+                      <option value="H1">上半年</option>
+                      <option value="H2">下半年</option>
+                    </select>
+                  </label>
 
                   <label>
                     新能源轮候开始年份
@@ -574,14 +586,37 @@ export default function Home() {
         </>
       )}
 
-      <section className="nav card">
-        <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))}>
-          上一步
-        </button>
-        <button type="button" onClick={() => setStep((s) => Math.min(4, s + 1))}>
-          下一步
-        </button>
-      </section>
+          <section className="nav card">
+            <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))}>
+              上一步
+            </button>
+            <button type="button" onClick={() => setStep((s) => Math.min(4, s + 1))}>
+              下一步
+            </button>
+          </section>
+        </div>
+
+        <aside className="card workbench-side">
+          <h3>实时结果预览</h3>
+          {result.ok ? (
+            <>
+              <p className="score-mini">总积分：{result.total}</p>
+              <p className="formula">{result.formulaText}</p>
+              <p className="muted small">已包含：基础分 + 阶梯（轮候）分 + 家庭申请年限分</p>
+            </>
+          ) : (
+            <p className="warn">{result.message}</p>
+          )}
+
+          <h4>关键规则</h4>
+          <ul className="detail-list">
+            <li>主申请人基础分2，其他成员基础分1</li>
+            <li>普通摇号按开始年份+上/下半年估算参与期数</li>
+            <li>2020年前与2021年后分段映射阶梯分</li>
+            <li>主申请人C5（参与普通摇号时）额外+1阶</li>
+          </ul>
+        </aside>
+      </div>
 
       <section className="card">
         <h2>规则说明（图文 + 表格）</h2>

@@ -287,10 +287,43 @@ button.danger {
   font-size: 14px;
 }
 
+.workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 14px;
+  align-items: start;
+}
+
+.workbench-main {
+  min-width: 0;
+}
+
+.workbench-side {
+  position: sticky;
+  top: 12px;
+}
+
+.score-mini {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f766e;
+}
+
 .nav {
   display: flex;
   justify-content: space-between;
   gap: 10px;
+}
+
+@media (max-width: 920px) {
+  .workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-side {
+    position: static;
+  }
 }
 
 @media (max-width: 700px) {
