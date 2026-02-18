@@ -212,6 +212,81 @@ button.danger {
   font-weight: 600;
 }
 
+.icon-cards {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.icon-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  padding: 10px;
+  background: #f8fbff;
+}
+
+.icon-card h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.icon-card p {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+
+.policy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.policy-table th,
+.policy-table td {
+  border: 1px solid #e2e8f0;
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.policy-table th {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+.example-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.example-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fcfdff;
+}
+
+.example-card h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.example-card p {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
 .nav {
   display: flex;
   justify-content: space-between;

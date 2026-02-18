@@ -577,29 +577,64 @@ export default function Home() {
       </section>
 
       <section className="card">
-        <h2>规则说明（当前实现）</h2>
-        <ul>
-          <li>家庭申请人积分 = 基础积分 + 阶梯（轮候）积分；家庭申请每满一年，全员+1。</li>
-          <li>普通摇号阶梯采用分段映射：2020年前与2021年后分别估算并合并（可配置）。</li>
-          <li>主申请人若具备 C5，且在参与普通摇号时，额外增加1个阶梯分。</li>
-          <li>家庭总积分按含配偶/不含配偶两套公式计算，并乘家庭代际数（最多3代）。</li>
-          <li>普通指标截止口径：3月8日/10月8日；新能源同分按最早注册时间排序。</li>
-        </ul>
-      </section>
+        <h2>规则说明（图文 + 表格）</h2>
+        <p className="muted small">为了更直观，下面把核心规则做成图标卡片、阶梯表和算例卡片。</p>
 
-      <section className="card">
-        <h2>计算规则（放在首页底部，含示例）</h2>
-        <p className="muted small">
-          下列示例仅用于帮助理解公式，最终以北京市小客车指标调控系统当年规则与实时计算结果为准。
-        </p>
+        <div className="icon-cards">
+          <article className="icon-card">
+            <img src="/icons/score.svg" alt="个人积分图标" width={40} height={40} />
+            <div>
+              <h3>个人积分</h3>
+              <p>个人积分 = 基础积分 + 阶梯（轮候）积分 + 家庭申请年限积分</p>
+            </div>
+          </article>
 
-        <h3>1）个人积分怎么来</h3>
-        <ul>
-          <li>个人积分 = 基础积分 + 阶梯（轮候）积分 + 家庭申请年限积分</li>
-          <li>基础积分：主申请人2分；其他家庭申请人1分</li>
-          <li>家庭申请年限：每满1年，全体家庭申请人各+1分</li>
-          <li>阶梯（轮候）积分：普通摇号阶梯分 + 新能源轮候年限分（按规则折算）</li>
-        </ul>
+          <article className="icon-card">
+            <img src="/icons/family.svg" alt="家庭积分图标" width={40} height={40} />
+            <div>
+              <h3>家庭总积分</h3>
+              <p>含配偶与不含配偶使用不同公式，并统一乘家庭代际数（最多3代）。</p>
+            </div>
+          </article>
+
+          <article className="icon-card">
+            <img src="/icons/formula.svg" alt="公式拆解图标" width={40} height={40} />
+            <div>
+              <h3>系统自动拆解</h3>
+              <p>不让用户手填分数，仅填年份与成员结构，系统自动换算并展示过程。</p>
+            </div>
+          </article>
+        </div>
+
+        <h3>1）普通摇号阶梯（关键分段）</h3>
+        <div className="table-wrap">
+          <table className="policy-table">
+            <thead>
+              <tr>
+                <th>阶段</th>
+                <th>累计参加次数</th>
+                <th>对应阶梯分</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2020-12-31前</td>
+                <td>1-2 / 3-4 / 5-6 / 7-8 / ... / 73-78</td>
+                <td>1 / 2 / 3 / 4 / ... / 13</td>
+              </tr>
+              <tr>
+                <td>2021-01-01后</td>
+                <td>1-6 / 7-12 / 13-18 / 19-24 / ...</td>
+                <td>1 / 2 / 3 / 4 / ...</td>
+              </tr>
+              <tr>
+                <td>特殊加分</td>
+                <td>主申请人具备C5且参与普通摇号</td>
+                <td>额外 +1 阶</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <h3>2）家庭总积分公式</h3>
         <ul>
@@ -607,26 +642,31 @@ export default function Home() {
           <li>不含配偶：总积分 = （主申请人积分 + 其他成员积分之和）× 家庭代际数</li>
         </ul>
 
-        <h3>3）示例A：夫妻+1名子女（2代）</h3>
-        <ul>
-          <li>假设：主申请人积分=18，配偶积分=16，子女积分=12，代际数=2</li>
-          <li>计算：[(18 + 16) × 2 + 12] × 2 = (68 + 12) × 2 = 160</li>
-          <li>结果：家庭总积分 = <b>160</b></li>
-        </ul>
+        <h3>3）算例卡片</h3>
+        <div className="example-grid">
+          <article className="example-card">
+            <h4>示例A：夫妻 + 1名子女（2代）</h4>
+            <p>主申请人=18，配偶=16，子女=12，代际=2</p>
+            <p className="formula">[(18 + 16) × 2 + 12] × 2 = 160</p>
+            <p><b>家庭总积分：160</b></p>
+          </article>
 
-        <h3>4）示例B：三代同堂（含配偶）</h3>
-        <ul>
-          <li>假设：主申请人=20，配偶=19，其他6位成员积分合计=78，代际数=3</li>
-          <li>计算：[(20 + 19) × 2 + 78] × 3 = (78 + 78) × 3 = 468</li>
-          <li>结果：家庭总积分 = <b>468</b></li>
-        </ul>
+          <article className="example-card">
+            <h4>示例B：三代同堂（含配偶）</h4>
+            <p>主申请人=20，配偶=19，其他成员合计=78，代际=3</p>
+            <p className="formula">[(20 + 19) × 2 + 78] × 3 = 468</p>
+            <p><b>家庭总积分：468</b></p>
+          </article>
 
-        <h3>5）示例C：不含配偶（主申请人+父母）</h3>
-        <ul>
-          <li>假设：主申请人=17，其他成员合计=24，代际数=2</li>
-          <li>计算：（17 + 24）× 2 = 82</li>
-          <li>结果：家庭总积分 = <b>82</b></li>
-        </ul>
+          <article className="example-card">
+            <h4>示例C：不含配偶（主申请人+父母）</h4>
+            <p>主申请人=17，其他成员合计=24，代际=2</p>
+            <p className="formula">(17 + 24) × 2 = 82</p>
+            <p><b>家庭总积分：82</b></p>
+          </article>
+        </div>
+
+        <p className="muted small">说明：上述算例为演示口径，最终以当年政策公告和系统实时计算结果为准。</p>
       </section>
     </main>
   );
